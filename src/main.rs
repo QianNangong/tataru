@@ -158,7 +158,9 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                     #dinner 晚上吃什么 晚餐吃什么 晚餐\n\
                     \u{20}\u{20}\u{20}\u{20}晚上吃点什么呢……\n\
                     #midnight_snack 夜宵吃什么 宵夜吃什么 夜宵 宵夜\n\
-                    \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……"
+                    \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……\n\
+                    #poem 念诗\n\
+                    \u{20}\u{20}\u{20}\u{20}念句诗"
                     .into(),
             );
         }
@@ -289,6 +291,28 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
             if let Some(eat) = Eat::open() {
                 messages.push(eat.random_midnight_snack());
             }
+        }
+        "#poem" | "念诗" => {
+            if let Ok(Ok(resp)) = timeout(
+                Duration::from_secs(5),
+                reqwest::get("https://v1.jinrishici.com/all.json"),
+            )
+            .await
+            {
+                if let Ok(resp) = resp.json::<HashMap<String, String>>().await {
+                    if let Some(content) = resp.get("content") {
+                        match parts.get(1) {
+                            Some(&"tts") | Some(&"语音") | Some(&"读出来") => {
+                                messages.push(format!("[CQ:tts,text={}]", content.to_string()));
+                            }
+                            _ => {
+                                messages.push(content.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
         }
         "#tarot" => {}
         _ => {}
