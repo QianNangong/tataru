@@ -259,9 +259,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
         }
         "#tts" | "转语音" => {
             if let Some((_, parts)) = parts.split_first() {
-                let re = Regex::new(r"\[[^\]]*\]").unwrap();
                 let str = parts.join(" ");
-                let str = re.replace_all(&str, "");
                 if !str.is_empty() {
                     messages.push(format!("[CQ:tts,text={}]", str.replace("我", "你")));
                 }
