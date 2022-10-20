@@ -117,18 +117,14 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
         if let Ok(json) = serde_json::from_str::<HashMap<String, Value>>(&json) {
             if let Some(Value::Object(meta)) = json.get("meta") {
                 if let Some(Value::Object(detail_1)) = meta.get("detail_1") {
-                    if let Some(Value::String(appid)) = detail_1.get("appid") {
-                        if appid == "1109937557" {
-                            if let (Some(Value::String(url)), Some(Value::String(title))) =
-                                (detail_1.get("qqdocurl"), detail_1.get("desc"))
-                            {
-                                messages.push(format!(
-                                    "视频名：{}\n\
+                    if let (Some(Value::String(url)), Some(Value::String(title))) =
+                        (detail_1.get("qqdocurl"), detail_1.get("desc"))
+                    {
+                        messages.push(format!(
+                            "视频名：{}\n\
                                     视频链接：{}",
-                                    title, url
-                                ));
-                            }
-                        }
+                            title, url
+                        ));
                     }
                 }
             }
@@ -261,7 +257,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
             if let Some((_, parts)) = parts.split_first() {
                 let str = parts.join(" ");
                 if !str.is_empty() {
-                    messages.push(format!("[CQ:tts,text={}]", str.replace("我", "你")));
+                    messages.push(format!("[CQ:tts,text={}]", str.replace('我', "你").replace(',', " ")));
                 }
             }
         }
@@ -310,7 +306,6 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                     }
                 }
             }
-
         }
         "#tarot" => {}
         _ => {}
