@@ -110,7 +110,7 @@ impl Eat {
 ///     .build()
 ///     .run()
 ///     .await
-
+/// ```
 async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<Message>) {
     #[derive(Serialize)]
     struct Params<'a> {
