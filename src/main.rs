@@ -1,14 +1,12 @@
 #[macro_use]
 extern crate log;
 
-mod tarot;
-
 use std::{collections::HashMap, fs::File, time::Duration};
 
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
 use rand::{seq::SliceRandom, thread_rng, Rng};
-use regex::Regex;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::{CpuExt, System, SystemExt};
@@ -95,6 +93,24 @@ impl Eat {
     }
 }
 
+/// FIXME: 换用类似路由的来实现
+/// #example
+/// 
+/// ```
+/// RouterBuilder::new(rx, tx)
+///     .register("#help", |args| async {
+///         "blahblah"
+///     })
+///     .register("#eat", "吃什么", |cmd, args| async {
+///         // 返回 Stream<String>
+///     })
+///     .register(|message| async {
+///         // 处理其他消息
+///     })
+///     .build()
+///     .run()
+///     .await
+
 async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<Message>) {
     #[derive(Serialize)]
     struct Params<'a> {
@@ -111,6 +127,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
 
     let mut messages: Vec<String> = Vec::new();
 
+    // FIXME: 换用正则来解析，避免出现诸如 index out of bounds 之类的问题
     if incoming_message.msg.starts_with("[CQ:json,data=") && incoming_message.msg.ends_with("]") {
         let text = &incoming_message.msg[14..incoming_message.msg.len() - 1];
         let json = html_escape::decode_html_entities(text);
@@ -121,8 +138,8 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                         (detail_1.get("qqdocurl"), detail_1.get("desc"))
                     {
                         messages.push(format!(
-                            "视频名：{}\n\
-                                    视频链接：{}",
+                            "标题：{}\n\
+                            链接：{}",
                             title, url
                         ));
                     }
@@ -143,8 +160,6 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                     \u{20}\u{20}\u{20}\u{20}猫猫图\n\
                     #dog 狗狗图\n\
                     \u{20}\u{20}\u{20}\u{20}狗狗图\n\
-                    #tts 转语音\n\
-                    \u{20}\u{20}\u{20}\u{20}文字转语音\n\
                     #eat 吃什么\n\
                     \u{20}\u{20}\u{20}\u{20}今天吃点什么呢……\n\
                     #breakfast 早上吃什么 早餐吃什么 早餐\n\
@@ -253,14 +268,6 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                     .join(" ")
             ));
         }
-        "#tts" | "转语音" => {
-            if let Some((_, parts)) = parts.split_first() {
-                let str = parts.join(" ");
-                if !str.is_empty() {
-                    messages.push(format!("[CQ:tts,text={}]", str.replace('我', "你").replace(',', " ")));
-                }
-            }
-        }
         "#eat" | "吃什么" => {
             if let Some(eat) = Eat::open() {
                 messages.push(eat.random());
@@ -295,14 +302,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
             {
                 if let Ok(resp) = resp.json::<HashMap<String, String>>().await {
                     if let Some(content) = resp.get("content") {
-                        match parts.get(1) {
-                            Some(&"tts") | Some(&"语音") | Some(&"读出来") => {
-                                messages.push(format!("[CQ:tts,text={}]", content.to_string()));
-                            }
-                            _ => {
-                                messages.push(content.to_string());
-                            }
-                        }
+                        messages.push(content.to_string());
                     }
                 }
             }
