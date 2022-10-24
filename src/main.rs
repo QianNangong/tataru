@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::{CpuExt, System, SystemExt};
 use tokio::time::timeout;
+use tokio_schedule::Job;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 struct IncomingMessage {
@@ -93,6 +94,19 @@ impl Eat {
     }
 }
 
+#[derive(Serialize)]
+struct Params<'a> {
+    user_id: Option<u64>,
+    group_id: Option<u64>,
+    message: &'a str,
+}
+
+#[derive(Serialize)]
+struct SendMessage<'a> {
+    action: &'a str,
+    params: Params<'a>,
+}
+
 /// FIXME: 换用类似路由的来实现
 /// #example
 /// 
@@ -112,19 +126,6 @@ impl Eat {
 ///     .await
 /// ```
 async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<Message>) {
-    #[derive(Serialize)]
-    struct Params<'a> {
-        user_id: Option<u64>,
-        group_id: Option<u64>,
-        message: &'a str,
-    }
-
-    #[derive(Serialize)]
-    struct SendMessage<'a> {
-        action: &'a str,
-        params: Params<'a>,
-    }
-
     let mut messages: Vec<String> = Vec::new();
 
     // FIXME: 换用正则来解析，避免出现诸如 index out of bounds 之类的问题
@@ -351,6 +352,28 @@ async fn main() {
     let (sink, stream) = ws_stream.split();
 
     let (tx, rx) = futures_channel::mpsc::unbounded();
+
+    let tx_cloned = tx.clone();
+
+    tokio::spawn(tokio_schedule::every(1).week().on(chrono::Weekday::Sat).at(21, 0, 0).in_timezone(&chrono::Local).perform(move || {
+        let tx = tx_cloned.clone();
+
+        async move {
+            let message = Some(SendMessage {
+                action: "send_msg",
+                params: Params {
+                    user_id: None,
+                    group_id: Some(790720353),
+                    message: "仙人仙彩开奖啦，请记得到金碟游乐场 (X: 8.6, Y: 5.7)处兑换奖励哦~",
+                },
+            });
+    
+            let message = serde_json::to_string(&message).unwrap();
+            if let Err(e) = tx.clone().unbounded_send(Message::text(&message)) {
+                warn!("未能发出消息 {}，错误信息 {}", &message, e.to_string());
+            };
+        }
+    }));
 
     let rx_to_ws = rx.map(Ok).forward(sink);
     let ws_to_tx = {
