@@ -153,7 +153,9 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
     for line in lines {
         let mut ns = fasteval::EmptyNamespace;
         if let Ok(value) = fasteval::ez_eval(line, &mut ns) {
-            if value.trunc() == value {
+            if value.is_infinite() {
+                messages.push(format!("[CQ:at,qq={}]太大了自己算去", incoming_message.sender));
+            } else if value.trunc() == value {
                 messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as i128));
             } else {
                 messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value));
