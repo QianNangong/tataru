@@ -305,22 +305,23 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                             JsValue::Null => Some(String::from("null")),
                             JsValue::Undefined => Some(String::from("undefined")),
                             JsValue::Object(_) => Some(String::from("object")),
-                            JsValue::Symbol(symbol) => Some(symbol.to_string())
+                            JsValue::Symbol(symbol) => Some(symbol.to_string()),
                         }
                     } else {
                         Some(String::from("执行错误"))
                     }
-
                 }
 
-                
-                let result = tokio::time::timeout(Duration::from_secs(1), run_javascript(script)).await;
+                let result =
+                    tokio::time::timeout(Duration::from_secs(1), run_javascript(script)).await;
                 if let Ok(Some(result)) = result {
                     messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, result));
                 } else {
-                    messages.push(format!("[CQ:at,qq={}]执行错误或超时", incoming_message.sender));
+                    messages.push(format!(
+                        "[CQ:at,qq={}]执行错误或超时",
+                        incoming_message.sender
+                    ));
                 }
-                
             }
             "#tarot" => {}
             _ => {}
