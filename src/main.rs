@@ -3,13 +3,13 @@ extern crate log;
 
 use std::{collections::HashMap, fs::File, time::Duration};
 
+use boa_engine::{Context, JsValue};
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sysinfo::{CpuExt, System, SystemExt};
 use tokio::time::timeout;
 use tokio_schedule::Job;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -149,182 +149,182 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
         }
     }
 
-    let lines = incoming_message.msg.lines();
-    for line in lines {
-        let mut ns = fasteval::EmptyNamespace;
-        if let Ok(value) = fasteval::ez_eval(line, &mut ns) {
-            if value.is_infinite() {
-                messages.push(format!("[CQ:at,qq={}]太大了自己算去", incoming_message.sender));
-            } else if value.trunc() == value {
-                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as i128));
-            } else {
-                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value));
-            }
-        }
-    }
-
-
     let parts: Vec<&str> = incoming_message.msg.split_whitespace().collect();
-    match parts[0] {
-        "#help" | "#h" => {
-            messages.push(
-                "#help\n\
-                    \u{20}\u{20}\u{20}\u{20}显示本帮助\n\
-                    #random #r #roll\n\
-                    \u{20}\u{20}\u{20}\u{20}掷骰子\n\
-                    #cat 猫猫图\n\
-                    \u{20}\u{20}\u{20}\u{20}猫猫图\n\
-                    #dog 狗狗图\n\
-                    \u{20}\u{20}\u{20}\u{20}狗狗图\n\
-                    #eat 吃什么\n\
-                    \u{20}\u{20}\u{20}\u{20}今天吃点什么呢……\n\
-                    #breakfast 早上吃什么 早餐吃什么 早餐\n\
-                    \u{20}\u{20}\u{20}\u{20}早上吃点什么呢……\n\
-                    #lunch 中午吃什么 午餐吃什么 午餐\n\
-                    \u{20}\u{20}\u{20}\u{20}中午吃点什么呢……\n\
-                    #dinner 晚上吃什么 晚餐吃什么 晚餐\n\
-                    \u{20}\u{20}\u{20}\u{20}晚上吃点什么呢……\n\
-                    #midnight_snack 夜宵吃什么 宵夜吃什么 夜宵 宵夜\n\
-                    \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……\n\
-                    #poem 念诗\n\
-                    \u{20}\u{20}\u{20}\u{20}念句诗"
-                    .into(),
-            );
-        }
-        "#random" | "#r" | "#roll" => {
-            let mut min: i32 = 0;
-            let mut max: i32 = 100;
-            if parts.len() == 2 {
-                if let Ok(max_parsed) = parts[1].parse::<i32>() {
-                    if max_parsed >= 10000 {
-                        max = 10000
-                    } else {
-                        max = max_parsed;
-                    }
-                }
-            } else if parts.len() > 2 {
-                if let Ok(min_parsed) = parts[1].parse::<i32>() {
-                    if min_parsed < -10000 {
-                        min = -9999
-                    } else {
-                        min = min_parsed;
-                    }
-                }
-                if let Ok(max_parsed) = parts[2].parse::<i32>() {
-                    if max_parsed >= 10000 {
-                        max = 10000
-                    } else {
-                        max = max_parsed;
-                    }
-                }
+    if let Some(command) = parts.get(0) {
+        match *command {
+            "#help" | "#h" => {
+                messages.push(
+                    "#help\n\
+                        \u{20}\u{20}\u{20}\u{20}显示本帮助\n\
+                        #random #r #roll\n\
+                        \u{20}\u{20}\u{20}\u{20}掷骰子\n\
+                        #cat 猫猫图\n\
+                        \u{20}\u{20}\u{20}\u{20}猫猫图\n\
+                        #dog 狗狗图\n\
+                        \u{20}\u{20}\u{20}\u{20}狗狗图\n\
+                        #eat 吃什么\n\
+                        \u{20}\u{20}\u{20}\u{20}今天吃点什么呢……\n\
+                        #breakfast 早上吃什么 早餐吃什么 早餐\n\
+                        \u{20}\u{20}\u{20}\u{20}早上吃点什么呢……\n\
+                        #lunch 中午吃什么 午餐吃什么 午餐\n\
+                        \u{20}\u{20}\u{20}\u{20}中午吃点什么呢……\n\
+                        #dinner 晚上吃什么 晚餐吃什么 晚餐\n\
+                        \u{20}\u{20}\u{20}\u{20}晚上吃点什么呢……\n\
+                        #midnight_snack 夜宵吃什么 宵夜吃什么 夜宵 宵夜\n\
+                        \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……\n\
+                        #poem 念诗\n\
+                        \u{20}\u{20}\u{20}\u{20}念句诗\n\
+                        #eval\n\
+                        \u{20}\u{20}\u{20}\u{20}执行一段Javascript脚本"
+                        .into(),
+                );
             }
-            if max < min {
-                max = min;
+            "#random" | "#r" | "#roll" => {
+                let mut min: i32 = 0;
+                let mut max: i32 = 100;
+                if parts.len() == 2 {
+                    if let Ok(max_parsed) = parts[1].parse::<i32>() {
+                        if max_parsed >= 10000 {
+                            max = 10000
+                        } else {
+                            max = max_parsed;
+                        }
+                    }
+                } else if parts.len() > 2 {
+                    if let Ok(min_parsed) = parts[1].parse::<i32>() {
+                        if min_parsed < -10000 {
+                            min = -9999
+                        } else {
+                            min = min_parsed;
+                        }
+                    }
+                    if let Ok(max_parsed) = parts[2].parse::<i32>() {
+                        if max_parsed >= 10000 {
+                            max = 10000
+                        } else {
+                            max = max_parsed;
+                        }
+                    }
+                }
+                if max < min {
+                    max = min;
+                }
+                let mut rng = thread_rng();
+                let dice = rng.gen_range(min..=max);
+                messages.push(format!(
+                    "[CQ:at,qq={}]掷出了{}点！",
+                    incoming_message.sender, dice
+                ));
             }
-            let mut rng = thread_rng();
-            let dice = rng.gen_range(min..=max);
-            messages.push(format!(
-                "[CQ:at,qq={}]掷出了{}点！",
-                incoming_message.sender, dice
-            ));
-        }
-        "#cat" | "猫猫图" => {
-            if let Ok(Ok(resp)) = timeout(
-                Duration::from_secs(5),
-                reqwest::get("https://api.thecatapi.com/v1/images/search"),
-            )
-            .await
-            {
-                if let Ok(resp) = resp.json::<Vec<Value>>().await {
-                    if let Some(Value::Object(object)) = resp.first() {
-                        if let Some(Value::String(url)) = object.get("url") {
-                            messages.push(format!("[CQ:image,file={}]", url));
+            "#cat" | "猫猫图" => {
+                if let Ok(Ok(resp)) = timeout(
+                    Duration::from_secs(5),
+                    reqwest::get("https://api.thecatapi.com/v1/images/search"),
+                )
+                .await
+                {
+                    if let Ok(resp) = resp.json::<Vec<Value>>().await {
+                        if let Some(Value::Object(object)) = resp.first() {
+                            if let Some(Value::String(url)) = object.get("url") {
+                                messages.push(format!("[CQ:image,file={}]", url));
+                            }
                         }
                     }
                 }
             }
-        }
-        "#dog" | "狗狗图" => {
-            if let Ok(Ok(resp)) = timeout(
-                Duration::from_secs(5),
-                reqwest::get("https://api.thedogapi.com/v1/images/search"),
-            )
-            .await
-            {
-                if let Ok(resp) = resp.json::<Vec<Value>>().await {
-                    if let Some(Value::Object(object)) = resp.first() {
-                        if let Some(Value::String(url)) = object.get("url") {
-                            messages.push(format!("[CQ:image,file={}]", url));
+            "#dog" | "狗狗图" => {
+                if let Ok(Ok(resp)) = timeout(
+                    Duration::from_secs(5),
+                    reqwest::get("https://api.thedogapi.com/v1/images/search"),
+                )
+                .await
+                {
+                    if let Ok(resp) = resp.json::<Vec<Value>>().await {
+                        if let Some(Value::Object(object)) = resp.first() {
+                            if let Some(Value::String(url)) = object.get("url") {
+                                messages.push(format!("[CQ:image,file={}]", url));
+                            }
                         }
                     }
                 }
             }
-        }
-        "#sysinfo" => {
-            let mut info = System::new_all();
-            info.refresh_all();
-            messages.push(format!(
-                "系统：{}\n\
-                内核版本：{}\n\
-                系统版本：{}\n\
-                内存用量：{} MiB / {} MiB\n\
-                交换用量：{} MiB / {} MiB\n\
-                核心负载：{}",
-                info.name().unwrap_or_default(),
-                info.kernel_version().unwrap_or_default(),
-                info.os_version().unwrap_or_default(),
-                info.used_memory() / 1048576,
-                info.total_memory() / 1048576,
-                info.used_swap() / 1048576,
-                info.total_swap() / 1048576,
-                info.cpus()
-                    .iter()
-                    .map(|cpu| format!("{:.2}%", cpu.cpu_usage()))
-                    .collect::<Vec<String>>()
-                    .join(" ")
-            ));
-        }
-        "#eat" | "吃什么" => {
-            if let Some(eat) = Eat::open() {
-                messages.push(eat.random());
+            "#eat" | "吃什么" => {
+                if let Some(eat) = Eat::open() {
+                    messages.push(eat.random());
+                }
             }
-        }
-        "#breakfast" | "早上吃什么" | "早餐吃什么" | "早餐" => {
-            if let Some(eat) = Eat::open() {
-                messages.push(eat.random_breakfast());
+            "#breakfast" | "早上吃什么" | "早餐吃什么" | "早餐" => {
+                if let Some(eat) = Eat::open() {
+                    messages.push(eat.random_breakfast());
+                }
             }
-        }
-        "#lunch" | "中午吃什么" | "午餐吃什么" | "午餐" => {
-            if let Some(eat) = Eat::open() {
-                messages.push(eat.random_lunch());
+            "#lunch" | "中午吃什么" | "午餐吃什么" | "午餐" => {
+                if let Some(eat) = Eat::open() {
+                    messages.push(eat.random_lunch());
+                }
             }
-        }
-        "#dinner" | "晚上吃什么" | "晚餐吃什么" | "晚餐" => {
-            if let Some(eat) = Eat::open() {
-                messages.push(eat.random_dinner());
+            "#dinner" | "晚上吃什么" | "晚餐吃什么" | "晚餐" => {
+                if let Some(eat) = Eat::open() {
+                    messages.push(eat.random_dinner());
+                }
             }
-        }
-        "#midnight_snack" | "夜宵吃什么" | "宵夜吃什么" | "夜宵" | "宵夜" => {
-            if let Some(eat) = Eat::open() {
-                messages.push(eat.random_midnight_snack());
+            "#midnight_snack" | "夜宵吃什么" | "宵夜吃什么" | "夜宵" | "宵夜" => {
+                if let Some(eat) = Eat::open() {
+                    messages.push(eat.random_midnight_snack());
+                }
             }
-        }
-        "#poem" | "念诗" => {
-            if let Ok(Ok(resp)) = timeout(
-                Duration::from_secs(5),
-                reqwest::get("https://v1.jinrishici.com/all.json"),
-            )
-            .await
-            {
-                if let Ok(resp) = resp.json::<HashMap<String, String>>().await {
-                    if let Some(content) = resp.get("content") {
-                        messages.push(content.to_string());
+            "#poem" | "念诗" => {
+                if let Ok(Ok(resp)) = timeout(
+                    Duration::from_secs(5),
+                    reqwest::get("https://v1.jinrishici.com/all.json"),
+                )
+                .await
+                {
+                    if let Ok(resp) = resp.json::<HashMap<String, String>>().await {
+                        if let Some(content) = resp.get("content") {
+                            messages.push(content.to_string());
+                        }
                     }
                 }
             }
+            "#eval" => {
+                if parts.len() == 0 {
+                    return;
+                }
+
+                let script = parts[1..].join(" ");
+                async fn run_javascript(script: String) -> Option<String> {
+                    let mut context = Context::default();
+                    if let Ok(value) = context.eval(script) {
+                        match value {
+                            JsValue::String(str) => Some(str.to_string()),
+                            JsValue::Integer(number) => Some(number.to_string()),
+                            JsValue::BigInt(number) => Some(number.to_string()),
+                            JsValue::Rational(number) => Some(number.to_string()),
+                            JsValue::Boolean(boolean) => Some(boolean.to_string()),
+                            JsValue::Null => Some(String::from("null")),
+                            JsValue::Undefined => Some(String::from("undefined")),
+                            JsValue::Object(_) => Some(String::from("object")),
+                            JsValue::Symbol(symbol) => Some(symbol.to_string())
+                        }
+                    } else {
+                        Some(String::from("执行错误"))
+                    }
+
+                }
+
+                
+                let result = tokio::time::timeout(Duration::from_secs(1), tokio::spawn(run_javascript(script))).await;
+                if let Ok(Ok(Some(result))) = result {
+                    messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, result));
+                } else {
+                    messages.push(format!("[CQ:at,qq={}]执行错误或超时", incoming_message.sender));
+                }
+                
+            }
+            "#tarot" => {}
+            _ => {}
         }
-        "#tarot" => {}
-        _ => {}
     }
 
     for message in messages.iter() {
