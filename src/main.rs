@@ -154,7 +154,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
         let mut ns = fasteval::EmptyNamespace;
         if let Ok(value) = fasteval::ez_eval(line, &mut ns) {
             if value.trunc() == value {
-                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as u64));
+                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as i128));
             } else {
                 messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value));
             }
