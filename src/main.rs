@@ -5,7 +5,6 @@ use std::{collections::HashMap, fs::File, time::Duration};
 
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
-use meval::eval_str;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use serde::{Deserialize, Serialize};
@@ -152,7 +151,8 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
 
     let lines = incoming_message.msg.lines();
     for line in lines {
-        if let Ok(value) = eval_str(line) {
+        let mut ns = fasteval::EmptyNamespace;
+        if let Ok(value) = fasteval::ez_eval(line, &mut ns) {
             if value.trunc() == value {
                 messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as u64));
             } else {
