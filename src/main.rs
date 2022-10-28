@@ -154,9 +154,9 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
     for line in lines {
         if let Ok(value) = eval_str(line) {
             if value.trunc() == value {
-                messages.push(format!("[CQ:at={}]{}", incoming_message.sender, value as u64));
+                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value as u64));
             } else {
-                messages.push(format!("[CQ:at={}]{}", incoming_message.sender, value));
+                messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, value));
             }
         }
     }
