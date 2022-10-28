@@ -3,7 +3,6 @@ extern crate log;
 
 use std::{collections::HashMap, fs::File, time::Duration};
 
-use evalexpr::{HashMapContext, eval};
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
 use meval::eval_str;
