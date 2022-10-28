@@ -314,8 +314,8 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                 }
 
                 
-                let result = tokio::time::timeout(Duration::from_secs(1), tokio::spawn(run_javascript(script))).await;
-                if let Ok(Ok(Some(result))) = result {
+                let result = tokio::time::timeout(Duration::from_secs(1), run_javascript(script)).await;
+                if let Ok(Some(result)) = result {
                     messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, result));
                 } else {
                     messages.push(format!("[CQ:at,qq={}]执行错误或超时", incoming_message.sender));
