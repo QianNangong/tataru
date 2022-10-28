@@ -3,6 +3,7 @@ extern crate log;
 
 use std::{collections::HashMap, fs::File, time::Duration};
 
+use evalexpr::{HashMapContext, eval};
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
 use rand::{seq::SliceRandom, thread_rng, Rng};
@@ -148,6 +149,14 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
             }
         }
     }
+
+    let lines = incoming_message.msg.lines();
+    for line in lines {
+        if let Ok(value) = eval(line) {
+            messages.push(value.to_string());
+        }
+    }
+
 
     let parts: Vec<&str> = incoming_message.msg.split_whitespace().collect();
     match parts[0] {
