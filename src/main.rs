@@ -3,11 +3,11 @@ extern crate log;
 
 use std::{collections::HashMap, fs::File, time::Duration};
 
-use boa_engine::{Context, JsValue};
 use futures_channel::mpsc::UnboundedSender;
 use futures_util::StreamExt;
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::time::timeout;
@@ -128,21 +128,29 @@ struct SendMessage<'a> {
 async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<Message>) {
     let mut messages: Vec<String> = Vec::new();
 
-    // FIXME: 换用正则来解析，避免出现诸如 index out of bounds 之类的问题
-    if incoming_message.msg.starts_with("[CQ:json,data=") && incoming_message.msg.ends_with("]") {
-        let text = &incoming_message.msg[14..incoming_message.msg.len() - 1];
-        let json = html_escape::decode_html_entities(text);
-        if let Ok(json) = serde_json::from_str::<HashMap<String, Value>>(&json) {
-            if let Some(Value::Object(meta)) = json.get("meta") {
-                if let Some(Value::Object(detail_1)) = meta.get("detail_1") {
-                    if let (Some(Value::String(url)), Some(Value::String(title))) =
-                        (detail_1.get("qqdocurl"), detail_1.get("desc"))
-                    {
-                        messages.push(format!(
-                            "标题：{}\n\
+    let re = Regex::new(r"\[CQ:json,data=(.*?)\]").unwrap();
+    for cap in re.captures_iter(&incoming_message.msg) {
+        if let Some(mat) = cap.get(1) {
+            let json = html_escape::decode_html_entities(mat.as_str());
+            if let Ok(json) = serde_json::from_str::<HashMap<String, Value>>(&json) {
+                if let Some(Value::Object(meta)) = json.get("meta") {
+                    if let Some(Value::Object(detail_1)) = meta.get("detail_1") {
+                        if let (
+                            Some(Value::String(title)),
+                            Some(Value::String(desc)),
+                            Some(Value::String(url)),
+                        ) = (
+                            detail_1.get("title"),
+                            detail_1.get("desc"),
+                            detail_1.get("qqdocurl"),
+                        ) {
+                            messages.push(format!(
+                                "标题：{}\n\
+                                描述：{}\n\
                             链接：{}",
-                            title, url
-                        ));
+                                title, desc, url
+                            ));
+                        }
                     }
                 }
             }
@@ -173,9 +181,7 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                         #midnight_snack 夜宵吃什么 宵夜吃什么 夜宵 宵夜\n\
                         \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……\n\
                         #poem 念诗\n\
-                        \u{20}\u{20}\u{20}\u{20}念句诗\n\
-                        #eval\n\
-                        \u{20}\u{20}\u{20}\u{20}执行一段Javascript脚本"
+                        \u{20}\u{20}\u{20}\u{20}念句诗"
                         .into(),
                 );
             }
@@ -285,42 +291,6 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                             messages.push(content.to_string());
                         }
                     }
-                }
-            }
-            "#eval" => {
-                if parts.len() == 0 {
-                    return;
-                }
-
-                let script = parts[1..].join(" ");
-                async fn run_javascript(script: String) -> Option<String> {
-                    let mut context = Context::default();
-                    if let Ok(value) = context.eval(script) {
-                        match value {
-                            JsValue::String(str) => Some(str.to_string()),
-                            JsValue::Integer(number) => Some(number.to_string()),
-                            JsValue::BigInt(number) => Some(number.to_string()),
-                            JsValue::Rational(number) => Some(number.to_string()),
-                            JsValue::Boolean(boolean) => Some(boolean.to_string()),
-                            JsValue::Null => Some(String::from("null")),
-                            JsValue::Undefined => Some(String::from("undefined")),
-                            JsValue::Object(_) => Some(String::from("object")),
-                            JsValue::Symbol(symbol) => Some(symbol.to_string()),
-                        }
-                    } else {
-                        Some(String::from("执行错误"))
-                    }
-                }
-
-                let result =
-                    tokio::time::timeout(Duration::from_secs(1), run_javascript(script)).await;
-                if let Ok(Some(result)) = result {
-                    messages.push(format!("[CQ:at,qq={}]{}", incoming_message.sender, result));
-                } else {
-                    messages.push(format!(
-                        "[CQ:at,qq={}]执行错误或超时",
-                        incoming_message.sender
-                    ));
                 }
             }
             "#tarot" => {}
