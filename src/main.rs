@@ -146,10 +146,30 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                         ) {
                             messages.push(format!(
                                 "标题：{}\n\
-                                描述：{}\n\
+                                简述：{}\n\
                             链接：{}",
                                 title, desc, url
                             ));
+                        }
+                    } else if let Some(Value::Object(news)) = meta.get("news") {
+                        if let (
+                            Some(Value::String(title)),
+                            Some(Value::String(tag)),
+                            Some(Value::String(desc)),
+                            Some(Value::String(jump_url)),
+                        ) = (
+                            news.get("title"),
+                            news.get("tag"),
+                            news.get("desc"),
+                            news.get("jumpUrl"),
+                        ) {
+                            messages.push(format!(
+                                "标题：{}\n\
+                                    来源：{}\n\
+                                    简述：{}\n\
+                                    链接：{}",
+                                title, tag, desc, jump_url
+                            ))
                         }
                     }
                 }
