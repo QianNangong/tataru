@@ -169,7 +169,30 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                                     简述：{}\n\
                                     链接：{}",
                                 title, tag, desc, jump_url
-                            ))
+                            ));
+                        }
+                    } else if let Some(Value::Object(music)) = meta.get("music") {
+                        if let (
+                            Some(Value::String(title)),
+                            Some(Value::String(tag)),
+                            Some(Value::String(desc)),
+                            Some(Value::String(jump_url)),
+                            Some(Value::String(preview)),
+                        ) = (
+                            music.get("title"),
+                            music.get("tag"),
+                            music.get("desc"),
+                            music.get("jumpUrl"),
+                            music.get("preview"),
+                        ) {
+                            messages.push(format!(
+                                "标题：{}\n\
+                                    来源：{}\n\
+                                    作者：{}\n\
+                                    链接：{}\n\
+                                    [CQ:image,url={}]",
+                                title, tag, desc, jump_url, preview
+                            ));
                         }
                     }
                 }
@@ -192,11 +215,11 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                         \u{20}\u{20}\u{20}\u{20}狗狗图\n\
                         #eat 吃什么\n\
                         \u{20}\u{20}\u{20}\u{20}今天吃点什么呢……\n\
-                        #breakfast 早上吃什么 早餐吃什么 早餐\n\
+                        #breakfast 早上吃什么 早餐吃什么 早餐 早饭\n\
                         \u{20}\u{20}\u{20}\u{20}早上吃点什么呢……\n\
-                        #lunch 中午吃什么 午餐吃什么 午餐\n\
+                        #lunch 中午吃什么 午餐吃什么 午餐 午饭\n\
                         \u{20}\u{20}\u{20}\u{20}中午吃点什么呢……\n\
-                        #dinner 晚上吃什么 晚餐吃什么 晚餐\n\
+                        #dinner 晚上吃什么 晚餐吃什么 晚餐 晚饭\n\
                         \u{20}\u{20}\u{20}\u{20}晚上吃点什么呢……\n\
                         #midnight_snack 夜宵吃什么 宵夜吃什么 夜宵 宵夜\n\
                         \u{20}\u{20}\u{20}\u{20}夜宵吃点什么呢……\n\
@@ -279,17 +302,17 @@ async fn handle_message(incoming_message: IncomingMessage, tx: UnboundedSender<M
                     messages.push(eat.random());
                 }
             }
-            "#breakfast" | "早上吃什么" | "早餐吃什么" | "早餐" => {
+            "#breakfast" | "早上吃什么" | "早餐吃什么" | "早餐" | "早饭" => {
                 if let Some(eat) = Eat::open() {
                     messages.push(eat.random_breakfast());
                 }
             }
-            "#lunch" | "中午吃什么" | "午餐吃什么" | "午餐" => {
+            "#lunch" | "中午吃什么" | "午餐吃什么" | "午餐" | "午饭" => {
                 if let Some(eat) = Eat::open() {
                     messages.push(eat.random_lunch());
                 }
             }
-            "#dinner" | "晚上吃什么" | "晚餐吃什么" | "晚餐" => {
+            "#dinner" | "晚上吃什么" | "晚餐吃什么" | "晚餐" | "晚饭" => {
                 if let Some(eat) = Eat::open() {
                     messages.push(eat.random_dinner());
                 }
